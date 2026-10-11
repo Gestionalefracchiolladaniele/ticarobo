@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.py[cod]
+# modello MediaPipe: si riscarica da Google, 8 MB
+camera/modelli/
+camera/foto/
+*.jpg
+*.png
