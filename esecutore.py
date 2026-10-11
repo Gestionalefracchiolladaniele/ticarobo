@@ -108,6 +108,8 @@ VELOCITA_MAX_POLSO = 90.0
 
 #: Una lettura piu' lenta di cosi' e' vecchia: si ferma tutto.
 ETA_MAX = 0.3
+#: Letture lente di fila prima di fermarsi: una isolata e' il picco del bus.
+LENTE_MAX = 3
 
 #: Ritardo massimo di un giunto dietro al comando. Il follower ha P=16
 #: (morbido) e la gravita' lo tira: qualche grado e' normale, 20 no.
@@ -272,17 +274,29 @@ def apri(porta: str) -> FeetechMotorsBus:
 
 
 def leggi(bus) -> dict[str, float]:
-    """Cancello 2: la posizione, solo se arriva in tempo. Altrimenti si tiene e si ferma."""
-    t0 = time.perf_counter()
-    try:
-        pos = bus.sync_read("Present_Position", num_retry=3)
-    except ConnectionError as e:
-        raise Fermo(f"il bus non risponde: {e}") from e
-    eta = time.perf_counter() - t0
-    if eta > ETA_MAX:
+    """Cancello 2: la posizione, solo se arriva in tempo.
+
+    Una lettura lenta **isolata** e' il picco del bus via usbipd (0,3-1,2 s,
+    raro): si tiene il braccio dov'e' e si rilegge, e si continua solo con una
+    lettura fresca. ``LENTE_MAX`` lente di fila sono un bus che non va: ci si
+    ferma. Prima (fino al 2026-10-11) una sola lenta fermava tutto, e il primo
+    "parcheggia" dell'agente e' morto cosi' (315 ms). Sicuro perche' durante la
+    lettura lenta il braccio va al massimo all'ultimo bersaglio, gia' entro
+    ``PASSO_MAX`` dalla posizione letta, e il passo dopo parte dalla lettura nuova.
+    """
+    for volta in range(1, LENTE_MAX + 1):
+        t0 = time.perf_counter()
+        try:
+            pos = bus.sync_read("Present_Position", num_retry=3)
+        except ConnectionError as e:
+            raise Fermo(f"il bus non risponde: {e}") from e
+        eta = time.perf_counter() - t0
+        if eta <= ETA_MAX:
+            return pos
         tieni(bus, pos)
-        raise Fermo(f"lettura vecchia: {eta * 1000:.0f} ms (massimo {ETA_MAX * 1000:.0f})")
-    return pos
+        log(f"lettura lenta {eta * 1000:.0f} ms ({volta}/{LENTE_MAX}): tengo e rileggo")
+    raise Fermo(f"{LENTE_MAX} letture lente di fila, l'ultima {eta * 1000:.0f} ms "
+                f"(massimo {ETA_MAX * 1000:.0f})")
 
 
 def tieni(bus, pos: dict[str, float]) -> None:
