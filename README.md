@@ -78,8 +78,15 @@ corsa all'altro, F5 escluso. Invio.
 | `porte.sh` | trova la porta di ogni braccio dal seriale |
 | `teleop.sh`, `calibra.sh` | i comandi LeRobot, con le porte giuste |
 | `gemello_lettore.py` | sola lettura a coppia spenta, una riga JSON per lettura: la usa `robotica\gemello.ps1` (D23) |
-| `esecutore.py` | **muove il follower**: riceve pose gia' approvate da `safety/` e le esegue coi suoi cancelli (partenza nel range, range vero, letture fresche, inseguimento, passi piccoli, velocita' con tetto 60°/s). La usa `robotica\gesto.ps1` (D23) |
+| `esecutore.py` | **muove il follower**: riceve pose gia' approvate da `safety/` e le esegue coi suoi cancelli (partenza nel range, range vero, letture fresche, inseguimento, passi piccoli, velocita' con tetto 60°/s, **90 per il polso**). Esegue anche **coreografie**, pose di fila senza fermarsi: le battute del gioco (D24). La usano `robotica\gesto.ps1` e `robotica\rps_vero.ps1` (D23) |
 | `leggi_motori.py` | sola lettura: ID, tensione, temperatura, posizione |
-| `camera/` | **la camera del kit, letta da Windows** (via usbipd arriva a pezzi): `lettore_camera.py` la manda a WSL con la mano trovata da MediaPipe (`modelli/gesture_recognizer.task`, 7,99 MB), `trova_camera.py` dice quale indice e'. Venv suo, **per Windows**, con Python e cache uv su F:. Si prova con `robotica\camera.ps1` |
+| `camera/` | **la camera del kit, letta da Windows** (via usbipd arriva a pezzi): `lettore_camera.py` la manda a WSL con la mano trovata da MediaPipe (`modelli/gesture_recognizer.task`, 7,99 MB, **non in git**: se manca si riscarica da `https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task`), `trova_camera.py` dice quale indice e'. Venv suo, **per Windows**, con Python e cache uv su F:. Si prova con `robotica\camera.ps1` |
 | `calibrazione/` | copia di sicurezza dei file di calibrazione |
 | `.venv/` | LeRobot + torch CPU (`uv pip install --torch-backend=cpu "lerobot[feetech]"`) |
+
+## Git
+
+Questa cartella ha un **git suo** (dal 2026-10-11), separato da quello del
+progetto: esecutore, camera, calibrazioni. Fuori da git: `.venv/` e il modello
+MediaPipe (si riscarica). Fine riga: LF, CRLF solo per i `.ps1`
+(`.gitattributes`): un `.sh` con CRLF rompe bash in WSL senza dire perche'.
