@@ -18,7 +18,12 @@ Protocollo, una riga JSON per verso:
     stdin   {"id": 0, "gesto": "pronto", "pos": {"shoulder_pan": 0.0, ..., "gripper": 12.0},
              "velocita": 30}          (gradi/s, facoltativa; tetto VELOCITA_MAX)
     stdout  {"id": 0, "esito": "fatto" | "rifiutato" | "fermato", "motivo": "...",
-             "errore": {"shoulder_pan": 0.4, ...}}
+             "errore": {"shoulder_pan": 0.4, ...}, "inizi": []}
+
+Oppure una **coreografia**, pose di fila senza fermarsi (le battute del gioco):
+
+    stdin   {"id": 1, "gesto": "mano", "tappe": [{...}, {...}], "velocita": 60}
+    stdout  come sopra, con "inizi": l'ora (time.time()) d'inizio di ogni tappa
 
 **stdout e' il tubo**: solo JSON. I messaggi per chi guarda vanno su stderr.
 
@@ -295,19 +300,55 @@ def durata(da: dict[str, float], a: dict[str, float], velocita: float = VELOCITA
 def muovi(bus, verso: dict[str, float], velocita: float = VELOCITA) -> dict[str, float]:
     """Porta il braccio a ``verso``. Restituisce l'errore finale per giunto; ``Fermo``
     se un cancello dice no (il braccio e' gia' stato tenuto dov'era)."""
+    partenza = partenza_controllata(bus)
+    tratto(bus, partenza, verso, durata(partenza, verso, velocita), partenza)
+    return assestati(bus, verso)
+
+
+def coreografia(
+    bus, tappe: list[dict[str, float]], velocita: float = VELOCITA
+) -> tuple[dict[str, float], list[float]]:
+    """Le tappe **di fila**, senza assestamento in mezzo: il ritmo lo tiene questo
+    ciclo, non chi manda i comandi (sei comandi separati aspetterebbero ognuno
+    fino a ``ATTESA_ARRIVO``: battute irregolari).
+
+    Ogni tratto parte dal bersaglio precedente, non dalla posizione letta: un
+    servo morbido e' sempre un po' indietro, e ripartire da dov'e' allungherebbe
+    ogni battuta. Il cancello 4 tiene comunque ogni comando entro ``PASSO_MAX``
+    dalla posizione letta. La durata di ogni tratto e' il cancello 5, come per un
+    gesto singolo. Restituisce l'errore finale e l'ora (``time.time()``) d'inizio
+    di ogni tappa: chi legge la camera sa quando e' partito il segno.
+    """
+    partenza = partenza_controllata(bus)
+    da, comandato, inizi = partenza, partenza, []
+    for verso in tappe:
+        inizi.append(time.time())
+        comandato = tratto(bus, da, verso, durata(da, verso, velocita), comandato)
+        da = verso
+    return assestati(bus, tappe[-1]), inizi
+
+
+def partenza_controllata(bus) -> dict[str, float]:
+    """Cancello 0 su cio' che il braccio legge adesso."""
     partenza = leggi(bus)
     motivo = partenza_sbagliata(partenza, range_visto(carica_calibrazione()))
     if motivo:
         tieni(bus, partenza)
         raise Fermo(f"partenza fuori range: {motivo}")
-    t_tot = durata(partenza, verso, velocita)
+    return partenza
+
+
+def tratto(
+    bus, da: dict[str, float], verso: dict[str, float], t_tot: float, comandato: dict[str, float]
+) -> dict[str, float]:
+    """Da ``da`` a ``verso`` in ``t_tot`` secondi, smoothstep, cancelli 2-4 a ogni passo.
+    Restituisce l'ultimo bersaglio scritto (serve al cancello 3 del tratto dopo)."""
     passi = max(1, math.ceil(t_tot * HZ))
-    comandato = partenza
     for k in range(1, passi + 1):
         t0 = time.perf_counter()
         s = k / passi
         s = s * s * (3 - 2 * s)
-        obiettivo = {m: partenza[m] + s * (verso[m] - partenza[m]) for m in MOTORI}
+        obiettivo = {m: da[m] + s * (verso[m] - da[m]) for m in MOTORI}
 
         ora = leggi(bus)
         for m in CORPO:  # cancello 3; la pinza no: stringendo un oggetto resta indietro apposta
@@ -321,8 +362,12 @@ def muovi(bus, verso: dict[str, float], velocita: float = VELOCITA) -> dict[str,
         bus.sync_write("Goal_Position", sicuro)
         comandato = sicuro
         time.sleep(max(0.0, 1 / HZ - (time.perf_counter() - t0)))
+    return comandato
 
-    # Assestamento: i servi morbidi arrivano un po' dopo l'ultimo comando.
+
+def assestati(bus, verso: dict[str, float]) -> dict[str, float]:
+    """I servi morbidi arrivano un po' dopo l'ultimo comando: si aspetta, al massimo
+    ``ATTESA_ARRIVO``. Restituisce l'errore finale per giunto."""
     t_fine = time.perf_counter() + ATTESA_ARRIVO
     while True:
         ora = leggi(bus)
@@ -366,7 +411,8 @@ def main() -> int:
         for riga in sys.stdin:
             cmd = json.loads(riga)
             nome = cmd.get("gesto", "?")
-            problemi = fuori_range(cmd["pos"], rng)
+            tappe = cmd["tappe"] if "tappe" in cmd else [cmd["pos"]]
+            problemi = [p for pos in tappe for p in fuori_range(pos, rng)]
             if problemi:
                 log(f"{nome}: RIFIUTATO, il braccio non si muove")
                 rispondi(id=cmd["id"], esito="rifiutato", motivo="; ".join(problemi), errore={})
@@ -374,12 +420,15 @@ def main() -> int:
             velocita = float(cmd.get("velocita", VELOCITA))
             log(f"{nome}: in movimento a {min(velocita, VELOCITA_MAX):.0f} gradi/s")
             try:
-                errore = muovi(bus, cmd["pos"], velocita)
+                if "tappe" in cmd:
+                    errore, inizi = coreografia(bus, tappe, velocita)
+                else:
+                    errore, inizi = muovi(bus, cmd["pos"], velocita), []
             except Fermo as e:
                 log(f"{nome}: FERMATO: {e}")
                 rispondi(id=cmd["id"], esito="fermato", motivo=str(e), errore={})
                 break
-            rispondi(id=cmd["id"], esito="fatto", motivo="", errore=errore)
+            rispondi(id=cmd["id"], esito="fatto", motivo="", errore=errore, inizi=inizi)
     except KeyboardInterrupt:
         log("interrotto")
     finally:
