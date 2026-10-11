@@ -16,7 +16,7 @@ sopra sbaglia.
 Protocollo, una riga JSON per verso:
 
     stdin   {"id": 0, "gesto": "pronto", "pos": {"shoulder_pan": 0.0, ..., "gripper": 12.0},
-             "velocita": 30}          (gradi/s, facoltativa; tetto VELOCITA_MAX)
+             "velocita": 30}          (gradi/s, facoltativa; tetti VELOCITA_MAX e VELOCITA_MAX_POLSO)
     stdout  {"id": 0, "esito": "fatto" | "rifiutato" | "fermato", "motivo": "...",
              "errore": {"shoulder_pan": 0.4, ...}, "inizi": []}
 
@@ -100,6 +100,11 @@ VELOCITA_PINZA = 40.0
 #: gradi/s ci mette 7 s), ma **il tetto e' qui**, non nel progetto. La pinza
 #: scala nella stessa proporzione.
 VELOCITA_MAX = 60.0
+#: Il polso puo' andare piu' svelto (decisione di Daniele, 2026-10-11): il
+#: rischio e' l'energia, massa x velocita'^2, e la massa grande e' il braccio
+#: intero, non la pinza. Serve alle battute del gioco: 20 gradi in 0,33 s.
+POLSO = ("wrist_flex", "wrist_roll")
+VELOCITA_MAX_POLSO = 90.0
 
 #: Una lettura piu' lenta di cosi' e' vecchia: si ferma tutto.
 ETA_MAX = 0.3
@@ -290,10 +295,14 @@ def tieni(bus, pos: dict[str, float]) -> None:
 
 def durata(da: dict[str, float], a: dict[str, float], velocita: float = VELOCITA) -> float:
     """Cancello 5. Con lo smoothstep il picco e' 1,5 volte la media: decide il giunto
-    che si muove di piu' rispetto alla sua velocita'. Oltre ``VELOCITA_MAX`` no."""
-    velocita = min(velocita, VELOCITA_MAX)
-    corpo = max(abs(a[m] - da[m]) for m in CORPO) / velocita
-    pinza = abs(a["gripper"] - da["gripper"]) / (VELOCITA_PINZA * velocita / VELOCITA)
+    che si muove di piu' rispetto alla sua velocita'. Oltre il tetto del giunto no:
+    ``VELOCITA_MAX_POLSO`` per il polso, ``VELOCITA_MAX`` per il resto e la pinza."""
+
+    def tetto(m: str) -> float:
+        return min(velocita, VELOCITA_MAX_POLSO if m in POLSO else VELOCITA_MAX)
+
+    corpo = max(abs(a[m] - da[m]) / tetto(m) for m in CORPO)
+    pinza = abs(a["gripper"] - da["gripper"]) / (VELOCITA_PINZA * tetto("gripper") / VELOCITA)
     return max(1.5 * max(corpo, pinza), 0.2)
 
 
@@ -418,7 +427,8 @@ def main() -> int:
                 rispondi(id=cmd["id"], esito="rifiutato", motivo="; ".join(problemi), errore={})
                 break
             velocita = float(cmd.get("velocita", VELOCITA))
-            log(f"{nome}: in movimento a {min(velocita, VELOCITA_MAX):.0f} gradi/s")
+            log(f"{nome}: in movimento a {min(velocita, VELOCITA_MAX):.0f} gradi/s "
+                f"(polso {min(velocita, VELOCITA_MAX_POLSO):.0f})")
             try:
                 if "tappe" in cmd:
                     errore, inizi = coreografia(bus, tappe, velocita)
