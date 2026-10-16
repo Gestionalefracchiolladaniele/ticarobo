@@ -99,14 +99,14 @@ class Riconoscitore:
         return {"gesti": gesti, "mano": mano, "mondo": mondo, "ms_riconoscimento": round(ms, 1)}
 
 
-def collega(porta: int, scadenza: float = math.inf) -> socket.socket:
+def collega(porta: int, scadenza: float = math.inf, host: str = "localhost") -> socket.socket:
     """Fino a quando WSL non ascolta, riprova: chi parte per primo non conta.
     ``scadenza`` (perf_counter): oltre, si smette di aspettare."""
     while time.perf_counter() < scadenza:
         try:
-            s = socket.create_connection(("localhost", porta), timeout=2)
+            s = socket.create_connection((host, porta), timeout=2)
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            log(f"collegato a WSL su localhost:{porta}")
+            log(f"collegato a WSL su {host}:{porta}")
             return s
         except OSError:
             time.sleep(2)
@@ -118,6 +118,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--indice", type=int, default=1, help="numero della camera (trova_camera.py)")
     ap.add_argument("--porta", type=int, default=5600)
+    # localhost passa dal ponte di Windows (wslrelay), che con molte connessioni
+    # morte smette di inoltrare (2026-10-12): allora l IP di WSL, hostname -I.
+    ap.add_argument("--host", default="localhost", help="dove ascolta WSL")
     ap.add_argument("--larghezza", type=int, default=640)
     ap.add_argument("--altezza", type=int, default=480)
     ap.add_argument("--qualita", type=int, default=85, help="JPEG, 0-100")
@@ -130,7 +133,7 @@ def main() -> int:
     t_inizio = t_report = time.perf_counter()
     scadenza = t_inizio + args.secondi if args.secondi else math.inf
     log("aspetto WSL...")
-    sock = collega(args.porta, scadenza)
+    sock = collega(args.porta, scadenza, args.host)
     parametri = [cv2.IMWRITE_JPEG_QUALITY, args.qualita]
     n, byte, ms_tot = 0, 0, 0.0
     try:
@@ -150,7 +153,7 @@ def main() -> int:
             except OSError:
                 log("WSL non risponde piu': mi ricollego")
                 sock.close()
-                sock = collega(args.porta, scadenza)
+                sock = collega(args.porta, scadenza, args.host)
                 continue
             n, byte = n + 1, byte + len(dati)
             ms_tot += meta.get("ms_riconoscimento", 0.0)

@@ -6,3 +6,11 @@ camera/modelli/
 camera/foto/
 *.jpg
 *.png
+# ACT: dataset e foto di prova (centinaia di MB)
+act/dati/
+act/outputs/
+# Kaggle: dataset caricati e modelli scaricati (GB), per ogni run (kaggle, kaggle_50...)
+act/kaggle*/dataset/*.zip
+act/kaggle*/output/
+# log del policy server e del robot client (inferenza asincrona)
+act/logs/
