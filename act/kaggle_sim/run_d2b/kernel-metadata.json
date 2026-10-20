@@ -1,0 +1,21 @@
+{
+  "id": "danielefracchiolla/act-caramelle-run-d2b",
+  "title": "act-caramelle-run-d2b",
+  "code_file": "act-caramelle-run-d2b.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "competition_sources": [],
+  "model_sources": [],
+  "dataset_sources": [
+    "danielefracchiolla/caramelle-so101-50",
+    "danielefracchiolla/so101-sim-codice"
+  ],
+  "kernel_sources": [
+    "danielefracchiolla/act-caramelle-sim-gen",
+    "danielefracchiolla/act-caramelle-run-d1"
+  ]
+}

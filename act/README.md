@@ -41,7 +41,7 @@ ripiega da solo. Registrare usa PyAV comunque; addestrare si fa su Kaggle.
 | 6 | `.\registra.ps1 -Episodi N` | gli episodi veri; `-Riprendi` per aggiungerne N in coda |
 | 7 | Kaggle | addestramento: `kaggle\` (sotto) |
 | 8 | `.\rollout.ps1 -Secondi 60` | il braccio da solo (`-Modello <cartella>`, `-Limite 5` piu' lento). **Senza `safety/`** (D26): mano sull'interruttore dei 12 V, **non** sotto il braccio |
-| 9 | `.\rollout_async.ps1 -Modello <cartella>` | come il rollout, **senza pause**: server (la rete) in una finestra minimizzata, client (il braccio) qui; a fine prova azioni/s e giri senza azioni. **Mai provato sul braccio** |
+| 9 | `.\rollout_async.ps1 -Modello <cartella>` | come il rollout, **senza pause**: server (la rete) in una finestra minimizzata, client (il braccio) qui; a fine prova azioni/s e giri senza azioni. **NON USARE** (19/10, Daniele): sul braccio movimenti a caso, su CPU il blocco arriva troppo tardi. Servirebbe una GPU |
 
 **Rollout:** ACT guarda una volta ed esegue 100 azioni (3,3 s) alla cieca;
 fra un blocco e l'altro una pausa (inferenza su CPU) e' normale. A fine tempo

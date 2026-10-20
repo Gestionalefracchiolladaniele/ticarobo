@@ -1,0 +1,20 @@
+{
+  "id": "danielefracchiolla/act-caramelle-run-c",
+  "title": "act-caramelle-run-c",
+  "code_file": "act-caramelle-run-c.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "competition_sources": [],
+  "model_sources": [],
+  "dataset_sources": [
+    "danielefracchiolla/caramelle-so101-50",
+    "danielefracchiolla/so101-sim-codice"
+  ],
+  "kernel_sources": [
+    "danielefracchiolla/act-caramelle-sim-gen"
+  ]
+}

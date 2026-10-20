@@ -14,3 +14,9 @@ act/kaggle*/dataset/*.zip
 act/kaggle*/output/
 # log del policy server e del robot client (inferenza asincrona)
 act/logs/
+# Kaggle sim: codice.zip si rigenera da act/kaggle_sim/codice/
+act/kaggle*/pacchetto/*.zip
+# texture della scena MuJoCo: piccole e servono alla simulazione
+!act/kaggle_sim/codice/robotica/scenes/**/*.png
+# output di Kaggle anche nelle sottocartelle (kaggle_sim/gen/output, kaggle_sim/run_c/output...)
+act/kaggle*/**/output/

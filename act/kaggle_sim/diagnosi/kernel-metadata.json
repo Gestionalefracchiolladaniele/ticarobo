@@ -1,14 +1,16 @@
 {
-  "id": "danielefracchiolla/act-caramelle",
-  "title": "act-caramelle",
-  "code_file": "act_caramelle.ipynb",
+  "id": "danielefracchiolla/so101-egl-diagnosi",
+  "title": "so101-egl-diagnosi",
+  "code_file": "so101-egl-diagnosi.ipynb",
   "language": "python",
   "kernel_type": "notebook",
   "is_private": true,
   "enable_gpu": true,
   "enable_internet": true,
   "machine_shape": "NvidiaTeslaT4",
-  "dataset_sources": ["danielefracchiolla/caramelle-so101"],
+  "dataset_sources": [
+    "danielefracchiolla/so101-sim-codice"
+  ],
   "competition_sources": [],
   "kernel_sources": [],
   "model_sources": []
